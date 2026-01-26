@@ -1,0 +1,23 @@
+services:
+  experiment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ou-superlinear:latest
+    working_dir: /workspace
+
+    volumes:
+      - ./:/workspace
+      - ./wandb_cache:/root/.cache/wandb
+
+    env_file:
+      - /home/lorantnagy/.secrets/wandb.env
+
+    environment:
+      - PYTHONPATH=/workspace
+      - WANDB_PROJECT=ou-vs-superlinear
+
+    stdin_open: true
+    tty: true
+    
+    command: ["bash"]

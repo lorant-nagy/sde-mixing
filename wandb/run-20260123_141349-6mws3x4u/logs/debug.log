@@ -1,0 +1,24 @@
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_setup.py:_flush():81] Current SDK version is 0.24.0
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_setup.py:_flush():81] Configure stats pid to 1
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_init.py:setup_run_log_directory():717] Logging user logs to /workspace/wandb/run-20260123_141349-6mws3x4u/logs/debug.log
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_init.py:setup_run_log_directory():718] Logging internal logs to /workspace/wandb/run-20260123_141349-6mws3x4u/logs/debug-internal.log
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_init.py:init():844] calling init triggers
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_init.py:init():849] wandb.init called with sweep_config: {}
+config: {'mu': 1.0, 'sigma': np.float64(1.4142135623730951), 'drift_power': 3, 'T_max': 15.0, 'N': 15000, 'M': 10000, 'every_k': 10, 'R_values': array([  2.,   4.,   8.,  16.,  32.,  64., 128., 256.]), 'p0_KS': 0.05, 'eps_W': 0.05, 'eps_TV': 0.05, 'M_stat': 50000, 'wandb_project': 'ou-vs-superlinear', 'wandb_entity': None, '_wandb': {}}
+2026-01-23 14:13:49,739 INFO    MainThread:1 [wandb_init.py:init():892] starting backend
+2026-01-23 14:13:49,967 INFO    MainThread:1 [wandb_init.py:init():895] sending inform_init request
+2026-01-23 14:13:49,973 INFO    MainThread:1 [wandb_init.py:init():903] backend started and connected
+2026-01-23 14:13:49,992 INFO    MainThread:1 [wandb_init.py:init():973] updated telemetry
+2026-01-23 14:13:49,995 INFO    MainThread:1 [wandb_init.py:init():997] communicating run to backend with 90.0 second timeout
+2026-01-23 14:13:50,662 INFO    MainThread:1 [wandb_init.py:init():1044] starting run threads in backend
+2026-01-23 14:13:50,720 INFO    MainThread:1 [wandb_run.py:_console_start():2529] atexit reg
+2026-01-23 14:13:50,720 INFO    MainThread:1 [wandb_run.py:_redirect():2377] redirect: wrap_raw
+2026-01-23 14:13:50,720 INFO    MainThread:1 [wandb_run.py:_redirect():2446] Wrapping output streams.
+2026-01-23 14:13:50,720 INFO    MainThread:1 [wandb_run.py:_redirect():2469] Redirects installed.
+2026-01-23 14:13:50,725 INFO    MainThread:1 [wandb_init.py:init():1084] run started, returning control to user process
+2026-01-23 14:27:12,987 INFO    MainThread:1 [wandb_run.py:_finish():2295] finishing run lorantnagy/ou-vs-superlinear/6mws3x4u
+2026-01-23 14:27:12,988 INFO    MainThread:1 [wandb_run.py:_atexit_cleanup():2494] got exitcode: 0
+2026-01-23 14:27:12,988 INFO    MainThread:1 [wandb_run.py:_restore():2476] restore
+2026-01-23 14:27:12,988 INFO    MainThread:1 [wandb_run.py:_restore():2482] restore done
+2026-01-23 14:27:14,614 INFO    MainThread:1 [wandb_run.py:_footer_sync_info():3870] logging synced files
