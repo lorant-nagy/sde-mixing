@@ -8,14 +8,17 @@ services:
 
     volumes:
       - ./:/workspace
-      - ./wandb_cache:/root/.cache/wandb
 
     env_file:
       - /home/lorantnagy/.secrets/wandb.env
 
     environment:
       - PYTHONPATH=/workspace
-      - WANDB_PROJECT=ou-vs-superlinear
+      - WANDB_PROJECT=sabanis-tusla-taming
+      - WANDB_DIR=/tmp
+      - WANDB_CACHE_DIR=/tmp/wandb_cache
+      - WANDB_CONFIG_DIR=/tmp/wandb_config
+      - WANDB_DATA_DIR=/tmp/wandb_data
 
     stdin_open: true
     tty: true

@@ -1,33 +1,53 @@
 # config.py
 """
-Configuration parameters for OU vs Superlinear Langevin simulation.
+Configuration parameters for Sabanis/TUSLA-style taming experiment.
+Taming: denominator = 1 + dt^alpha * |X|^(2r)
+Regularization: eta * |X|^(2r) * X
 """
 import numpy as np
 
 PARAMS = {
-    # SDE parameters
-    'mu': 1.0,
-    'sigma': np.sqrt(2.0),
-    'drift_power': 3,  # cubic drift: b(x) = -mu * |x|^(p-1) * x
+    # Basic SDE parameters
+    'mu': 0.5,
+    'sigma': np.sqrt(1.0),
+    
+    # Process configurations: list of (alpha, r, p) triplets
+    # alpha: power on dt in taming (Sabanis parameter, typically 0.5 or 1)
+    # r: state power parameter (taming uses |X|^(2r))
+    # p: drift power (drift = -mu * |X|^(p-1) * X)
+    #
+    # Taming denominator: 1 + dt^alpha * |X|^(2r)
+    # Regularization: eta * |X|^(2r) * X
+    #
+    # Special cases:
+    # - (alpha, r=0, p=1): OU-like with constant taming (1 + dt^alpha)
+    # - (alpha=0.5, r, p) with 2r≈p: TUSLA-style (matches drift growth)
+    # - (alpha=1, r, p): Stronger taming (was original implementation)
+    
+    'process_configs': [
+        (0.5, 0, 1),    # OU-like: linear drift, TUSLA-style alpha=0.5, constant taming
+        (0.5, 1, 3),    # Quadratic drift, TUSLA alpha=0.5, 2r=2 (close match)
+        (1.0, 1, 3),    # Quadratic drift, stronger taming alpha=1
+    ],
     
     # Simulation parameters
-    'T_max': 15.0,
-    'N': 15000,
-    'M': 10000,
+    'T_max': 7.0,
+    'N': 1500,
+    'M': 1000,
     'every_k': 10,
     
     # Radii to test
-    'R_values': 2.0 ** np.arange(1, 13),  # [2, 4, 8, 16, 32, 64, 128, 256]
+    'R_values': np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0]),
     
     # Thresholds for mixing time
-    'p0_KS': 0.05,  # Note: p-value threshold (consider using KS statistic instead)
+    'p0_KS': 0.05,
     'eps_W': 0.05,
     'eps_TV': 0.05,
     
     # Stationary reference generation
-    'M_stat': 50000,   # Number of stationary samples
+    'M_stat': 5000,
     
     # WandB settings
-    'wandb_project': 'ou-vs-superlinear',
-    'wandb_entity': None,  # Set to your wandb username/team if needed
+    'wandb_project': 'sabanis-tusla-taming',
+    'wandb_entity': None,
 }

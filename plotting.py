@@ -1,6 +1,6 @@
 # plotting.py
 """
-Plotting functions for visualization.
+Plotting functions for visualization of multiple process configurations.
 All functions return matplotlib figure objects (don't show or save).
 """
 import numpy as np
@@ -15,7 +15,7 @@ def plot_cutoff_shapes(results, R_values, thresholds, process_name, use_KS_stat=
         results: Dictionary mapping R to results dict
         R_values: Array of all R values
         thresholds: Dict with 'p0_KS', 'eps_W', 'eps_TV'
-        process_name: Name for title (e.g., "OU Process")
+        process_name: Name for title (e.g., "α=0.5, r=1, p=3")
         use_KS_stat: If True, plot KS statistic instead of p-value
     
     Returns:
@@ -67,16 +67,15 @@ def plot_cutoff_shapes(results, R_values, thresholds, process_name, use_KS_stat=
     return fig
 
 
-def plot_combined_comparison(results_OU, results_super, R_display, thresholds, drift_power, use_KS_stat=False):
+def plot_combined_comparison(all_results, R_values, process_configs, thresholds, use_KS_stat=False):
     """
-    Plot combined comparison of OU vs Superlinear for a single R.
+    Plot combined comparison of all processes for a single R.
     
     Args:
-        results_OU: Dictionary with OU results
-        results_super: Dictionary with superlinear results
-        R_display: R value to display
+        all_results: Dictionary mapping config_name to results dict
+        R_values: Array of R values
+        process_configs: List of (alpha, r, p) triplets
         thresholds: Dict with 'p0_KS', 'eps_W', 'eps_TV'
-        drift_power: Power parameter for superlinear drift
         use_KS_stat: If True, plot KS statistic instead of p-value
     
     Returns:
@@ -84,51 +83,58 @@ def plot_combined_comparison(results_OU, results_super, R_display, thresholds, d
     """
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
     
-    times_OU = results_OU[R_display]['times']
-    times_super = results_super[R_display]['times']
+    # Pick middle R value for comparison
+    R_display = R_values[len(R_values)//2]
     
-    if use_KS_stat:
-        axes[0].plot(times_OU, results_OU[R_display]['KS_stats'], 
-                     label='OU', color='blue', linewidth=2)
-        axes[0].plot(times_super, results_super[R_display]['KS_stats'], 
-                     label=f'Superlinear (p={drift_power}, tamed)', color='orange', linewidth=2)
-        axes[0].set_ylabel('KS statistic')
-        axes[0].set_title(f'KS statistic vs time (R={int(R_display)})')
-    else:
-        axes[0].plot(times_OU, results_OU[R_display]['KS_pvals'], 
-                     label='OU', color='blue', linewidth=2)
-        axes[0].plot(times_super, results_super[R_display]['KS_pvals'], 
-                     label=f'Superlinear (p={drift_power}, tamed)', color='orange', linewidth=2)
-        axes[0].set_ylabel('KS p-value')
-        axes[0].set_title(f'KS p-value vs time (R={int(R_display)})')
+    colors = ['blue', 'orange', 'green', 'red', 'purple', 'brown']
     
-    axes[0].axhline(thresholds['p0_KS'], color='red', linestyle='--', linewidth=1, alpha=0.5,
+    for idx, (alpha, r, drift_power) in enumerate(process_configs):
+        config_name = f"a{alpha}_r{r}_p{drift_power}"
+        color = colors[idx % len(colors)]
+        label = f"α={alpha}, r={r}, p={drift_power}"
+        
+        times = all_results[config_name][R_display]['times']
+        
+        if use_KS_stat:
+            axes[0].plot(times, all_results[config_name][R_display]['KS_stats'], 
+                         label=label, color=color, linewidth=2, alpha=0.7)
+        else:
+            axes[0].plot(times, all_results[config_name][R_display]['KS_pvals'], 
+                         label=label, color=color, linewidth=2, alpha=0.7)
+        
+        axes[1].plot(times, all_results[config_name][R_display]['W1'], 
+                     label=label, color=color, linewidth=2, alpha=0.7)
+        axes[2].plot(times, all_results[config_name][R_display]['TV'], 
+                     label=label, color=color, linewidth=2, alpha=0.7)
+    
+    # Add threshold lines
+    axes[0].axhline(thresholds['p0_KS'], color='black', linestyle='--', linewidth=1, alpha=0.5,
                     label=f"threshold={thresholds['p0_KS']}")
+    axes[1].axhline(thresholds['eps_W'], color='black', linestyle='--', linewidth=1, alpha=0.5,
+                    label=f"threshold={thresholds['eps_W']}")
+    axes[2].axhline(thresholds['eps_TV'], color='black', linestyle='--', linewidth=1, alpha=0.5,
+                    label=f"threshold={thresholds['eps_TV']}")
+    
+    # Labels
     axes[0].set_xlabel('Time t')
+    if use_KS_stat:
+        axes[0].set_ylabel('KS statistic')
+        axes[0].set_title(f'KS statistic comparison (R={int(R_display)})')
+    else:
+        axes[0].set_ylabel('KS p-value')
+        axes[0].set_title(f'KS p-value comparison (R={int(R_display)})')
     axes[0].legend()
     axes[0].grid(True, alpha=0.3)
     
-    axes[1].plot(times_OU, results_OU[R_display]['W1'], 
-                 label='OU', color='blue', linewidth=2)
-    axes[1].plot(times_super, results_super[R_display]['W1'], 
-                 label=f'Superlinear (p={drift_power}, tamed)', color='orange', linewidth=2)
-    axes[1].axhline(thresholds['eps_W'], color='red', linestyle='--', linewidth=1, alpha=0.5,
-                    label=f"threshold={thresholds['eps_W']}")
     axes[1].set_xlabel('Time t')
     axes[1].set_ylabel('W₁ distance')
-    axes[1].set_title(f'Wasserstein distance vs time (R={int(R_display)})')
+    axes[1].set_title(f'Wasserstein distance comparison (R={int(R_display)})')
     axes[1].legend()
     axes[1].grid(True, alpha=0.3)
     
-    axes[2].plot(times_OU, results_OU[R_display]['TV'], 
-                 label='OU', color='blue', linewidth=2)
-    axes[2].plot(times_super, results_super[R_display]['TV'], 
-                 label=f'Superlinear (p={drift_power}, tamed)', color='orange', linewidth=2)
-    axes[2].axhline(thresholds['eps_TV'], color='red', linestyle='--', linewidth=1, alpha=0.5,
-                    label=f"threshold={thresholds['eps_TV']}")
     axes[2].set_xlabel('Time t')
     axes[2].set_ylabel('TV distance')
-    axes[2].set_title(f'TV distance vs time (R={int(R_display)})')
+    axes[2].set_title(f'TV distance comparison (R={int(R_display)})')
     axes[2].legend()
     axes[2].grid(True, alpha=0.3)
     
@@ -142,7 +148,7 @@ def plot_asymptotic_scaling(mixing_times, slope_theory, process_name, color):
     
     Args:
         mixing_times: Dict with 'KS', 'W1', 'TV', 'R' arrays
-        slope_theory: Theoretical slope (1/mu for OU, None for superlinear)
+        slope_theory: Not used (kept for compatibility)
         process_name: Name for title
         color: Color for plots
     
@@ -159,41 +165,29 @@ def plot_asymptotic_scaling(mixing_times, slope_theory, process_name, color):
     log_R_dense = np.linspace(log_R.min(), log_R.max(), 100)
     
     axes[0].plot(log_R, mixing_times['KS'], 'o', color=color, markersize=8, label=process_name)
-    if slope_theory is not None:
-        axes[0].plot(log_R_dense, slope_theory * log_R_dense + fit_KS[1], '--', 
-                     color=color, label=f'Theory: slope={slope_theory:.2f}')
-    else:
-        axes[0].plot(log_R_dense, fit_KS[0] * log_R_dense + fit_KS[1], '--',
-                     color=color, label=f'Fit slope: {fit_KS[0]:.2f}')
+    axes[0].plot(log_R_dense, fit_KS[0] * log_R_dense + fit_KS[1], '--',
+                 color=color, alpha=0.7, label=f'Fitted: slope={fit_KS[0]:.2f}')
     axes[0].set_xlabel('log(R)')
     axes[0].set_ylabel('Mixing time (KS)')
-    axes[0].set_title(f'{process_name}: KS mixing time\nFit slope: {fit_KS[0]:.2f}')
+    axes[0].set_title(f'{process_name}: KS mixing time\nFitted slope: {fit_KS[0]:.2f}')
     axes[0].legend()
     axes[0].grid(True, alpha=0.3)
     
     axes[1].plot(log_R, mixing_times['W1'], 'o', color=color, markersize=8, label=process_name)
-    if slope_theory is not None:
-        axes[1].plot(log_R_dense, slope_theory * log_R_dense + fit_W1[1], '--',
-                     color=color, label=f'Theory: slope={slope_theory:.2f}')
-    else:
-        axes[1].plot(log_R_dense, fit_W1[0] * log_R_dense + fit_W1[1], '--',
-                     color=color, label=f'Fit slope: {fit_W1[0]:.2f}')
+    axes[1].plot(log_R_dense, fit_W1[0] * log_R_dense + fit_W1[1], '--',
+                 color=color, alpha=0.7, label=f'Fitted: slope={fit_W1[0]:.2f}')
     axes[1].set_xlabel('log(R)')
     axes[1].set_ylabel('Mixing time (W₁)')
-    axes[1].set_title(f'{process_name}: Wasserstein mixing time\nFit slope: {fit_W1[0]:.2f}')
+    axes[1].set_title(f'{process_name}: Wasserstein mixing time\nFitted slope: {fit_W1[0]:.2f}')
     axes[1].legend()
     axes[1].grid(True, alpha=0.3)
     
     axes[2].plot(log_R, mixing_times['TV'], 'o', color=color, markersize=8, label=process_name)
-    if slope_theory is not None:
-        axes[2].plot(log_R_dense, slope_theory * log_R_dense + fit_TV[1], '--',
-                     color=color, label=f'Theory: slope={slope_theory:.2f}')
-    else:
-        axes[2].plot(log_R_dense, fit_TV[0] * log_R_dense + fit_TV[1], '--',
-                     color=color, label=f'Fit slope: {fit_TV[0]:.2f}')
+    axes[2].plot(log_R_dense, fit_TV[0] * log_R_dense + fit_TV[1], '--',
+                 color=color, alpha=0.7, label=f'Fitted: slope={fit_TV[0]:.2f}')
     axes[2].set_xlabel('log(R)')
     axes[2].set_ylabel('Mixing time (TV)')
-    axes[2].set_title(f'{process_name}: TV mixing time\nFit slope: {fit_TV[0]:.2f}')
+    axes[2].set_title(f'{process_name}: TV mixing time\nFitted slope: {fit_TV[0]:.2f}')
     axes[2].legend()
     axes[2].grid(True, alpha=0.3)
     
@@ -201,67 +195,72 @@ def plot_asymptotic_scaling(mixing_times, slope_theory, process_name, color):
     return fig
 
 
-def plot_combined_asymptotic(mixing_OU, mixing_super, slope_theory, drift_power):
+def plot_combined_asymptotic(all_mixing_times, process_configs):
     """
-    Plot combined asymptotic scaling comparison.
+    Plot combined asymptotic scaling comparison for all processes.
     
     Args:
-        mixing_OU: Mixing times dict for OU
-        mixing_super: Mixing times dict for superlinear
-        slope_theory: Theoretical slope for OU
-        drift_power: Power parameter for superlinear
+        all_mixing_times: Dictionary mapping config_name to mixing_times dict
+        process_configs: List of (alpha, r, p) triplets
     
     Returns:
         Figure object
     """
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
     
-    log_R = np.log(mixing_OU['R'])
-    log_R_super = np.log(mixing_super['R'])
-    log_R_dense = np.linspace(log_R.min(), log_R.max(), 100)
+    colors = ['blue', 'orange', 'green', 'red', 'purple', 'brown']
+    markers = ['o', 's', '^', 'v', 'D', 'p']
     
-    fit_KS = np.polyfit(log_R, mixing_OU['KS'], 1)
-    fit_W1 = np.polyfit(log_R, mixing_OU['W1'], 1)
-    fit_TV = np.polyfit(log_R, mixing_OU['TV'], 1)
+    for idx, (alpha, r, drift_power) in enumerate(process_configs):
+        config_name = f"a{alpha}_r{r}_p{drift_power}"
+        color = colors[idx % len(colors)]
+        marker = markers[idx % len(markers)]
+        label = f"α={alpha}, r={r}, p={drift_power}"
+        
+        mixing_times = all_mixing_times[config_name]
+        log_R = np.log(mixing_times['R'])
+        log_R_dense = np.linspace(log_R.min(), log_R.max(), 100)
+        
+        # Fit slopes
+        fit_KS = np.polyfit(log_R, mixing_times['KS'], 1)
+        fit_W1 = np.polyfit(log_R, mixing_times['W1'], 1)
+        fit_TV = np.polyfit(log_R, mixing_times['TV'], 1)
+        
+        # KS
+        axes[0].plot(log_R, mixing_times['KS'], marker, color=color, markersize=8, 
+                     label=f"{label} ({fit_KS[0]:.2f})", alpha=0.7)
+        axes[0].plot(log_R_dense, fit_KS[0] * log_R_dense + fit_KS[1], '--', 
+                     color=color, alpha=0.5)
+        
+        # W1
+        axes[1].plot(log_R, mixing_times['W1'], marker, color=color, markersize=8, 
+                     label=f"{label} ({fit_W1[0]:.2f})", alpha=0.7)
+        axes[1].plot(log_R_dense, fit_W1[0] * log_R_dense + fit_W1[1], '--', 
+                     color=color, alpha=0.5)
+        
+        # TV
+        axes[2].plot(log_R, mixing_times['TV'], marker, color=color, markersize=8, 
+                     label=f"{label} ({fit_TV[0]:.2f})", alpha=0.7)
+        axes[2].plot(log_R_dense, fit_TV[0] * log_R_dense + fit_TV[1], '--', 
+                     color=color, alpha=0.5)
     
-    fit_KS_super = np.polyfit(log_R_super, mixing_super['KS'], 1)
-    fit_W1_super = np.polyfit(log_R_super, mixing_super['W1'], 1)
-    fit_TV_super = np.polyfit(log_R_super, mixing_super['TV'], 1)
-    
-    # KS
-    axes[0].plot(log_R, mixing_OU['KS'], 'o', color='blue', markersize=8, label='OU')
-    axes[0].plot(log_R_dense, slope_theory * log_R_dense + fit_KS[1], '--', color='blue')
-    axes[0].plot(log_R_super, mixing_super['KS'], 's', color='orange', markersize=8, 
-                 label=f'Superlinear (p={drift_power}, tamed)')
-    axes[0].plot(log_R_dense, fit_KS_super[0] * log_R_dense + fit_KS_super[1], '--', color='orange')
+    # Labels
     axes[0].set_xlabel('log(R)')
     axes[0].set_ylabel('Mixing time (KS)')
-    axes[0].set_title(f'KS mixing time comparison\nOU: {fit_KS[0]:.2f}, Super: {fit_KS_super[0]:.2f}')
-    axes[0].legend()
+    axes[0].set_title('KS mixing time comparison\n(slopes in legend)')
+    axes[0].legend(fontsize=8)
     axes[0].grid(True, alpha=0.3)
     
-    # Wasserstein
-    axes[1].plot(log_R, mixing_OU['W1'], 'o', color='blue', markersize=8, label='OU')
-    axes[1].plot(log_R_dense, slope_theory * log_R_dense + fit_W1[1], '--', color='blue')
-    axes[1].plot(log_R_super, mixing_super['W1'], 's', color='orange', markersize=8, 
-                 label=f'Superlinear (p={drift_power}, tamed)')
-    axes[1].plot(log_R_dense, fit_W1_super[0] * log_R_dense + fit_W1_super[1], '--', color='orange')
     axes[1].set_xlabel('log(R)')
     axes[1].set_ylabel('Mixing time (W₁)')
-    axes[1].set_title(f'Wasserstein mixing time comparison\nOU: {fit_W1[0]:.2f}, Super: {fit_W1_super[0]:.2f}')
-    axes[1].legend()
+    axes[1].set_title('Wasserstein mixing time comparison\n(slopes in legend)')
+    axes[1].legend(fontsize=8)
     axes[1].grid(True, alpha=0.3)
     
-    # TV
-    axes[2].plot(log_R, mixing_OU['TV'], 'o', color='blue', markersize=8, label='OU')
-    axes[2].plot(log_R_dense, slope_theory * log_R_dense + fit_TV[1], '--', color='blue')
-    axes[2].plot(log_R_super, mixing_super['TV'], 's', color='orange', markersize=8, 
-                 label=f'Superlinear (p={drift_power}, tamed)')
-    axes[2].plot(log_R_dense, fit_TV_super[0] * log_R_dense + fit_TV_super[1], '--', color='orange')
     axes[2].set_xlabel('log(R)')
     axes[2].set_ylabel('Mixing time (TV)')
-    axes[2].set_title(f'TV mixing time comparison\nOU: {fit_TV[0]:.2f}, Super: {fit_TV_super[0]:.2f}')
-    axes[2].legend()
+    axes[2].set_title('TV mixing time comparison\n(slopes in legend)')
+    axes[2].legend(fontsize=8)
     axes[2].grid(True, alpha=0.3)
     
     plt.tight_layout()

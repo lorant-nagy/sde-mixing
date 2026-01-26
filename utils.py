@@ -7,61 +7,27 @@ from scipy.stats import wasserstein_distance, ks_2samp
 from scipy.special import gamma
 
 
-def simulate_OU(R, mu, sigma, dt, N, M, every_k):
+def simulate_tusla(R, mu, sigma, drift_power, r, alpha, eta, dt, N, M, every_k):
     """
-    OU process: dX = -mu * X * dt + sigma * dW
+    Generalized Sabanis/TUSLA algorithm for Langevin dynamics.
+    
+    Process: dX = -mu * |X|^(p-1) * X * dt + sigma * dW
+    Regularization: H(X) = G(X) + eta * |X|^(2r) * X
+    Taming: H_lambda(X) = H(X) / (1 + dt^alpha * |X|^(2r))
+    
+    Special cases:
+    - (alpha=0.5, r=0, p=1): TUSLA-style OU with constant taming
+    - (alpha=0.5, r, p) with 2r≈p: TUSLA (denominator scales like sqrt(dt)*|drift|)
+    - (alpha=1, r, p): Stronger taming (original drift-taming style)
     
     Args:
         R: Initial radius
         mu: Drift parameter
         sigma: Diffusion parameter
-        dt: Time step
-        N: Total number of steps
-        M: Number of trajectories
-        every_k: Save every k-th step
-    
-    Returns:
-        times: Array of time points
-        samples: Array of shape (n_save, M) with samples
-    """
-    X = np.full(M, R, dtype=np.float64)
-    
-    n_save = N // every_k + 1
-    times = np.zeros(n_save)
-    samples = np.zeros((n_save, M))
-    
-    samples[0] = X
-    times[0] = 0.0
-    
-    save_idx = 1
-    for n in range(1, N + 1):
-        Z = np.random.randn(M)
-        X = X - mu * X * dt + sigma * np.sqrt(dt) * Z
-        
-        if n % every_k == 0:
-            times[save_idx] = n * dt
-            samples[save_idx] = X
-            save_idx += 1
-    
-    # Check for NaN values
-    assert not np.any(np.isnan(times)), "NaN detected in OU times"
-    assert not np.any(np.isnan(samples)), "NaN detected in OU samples"
-    
-    return times, samples
-
-
-def simulate_superlinear_tamed(R, mu, sigma, power, dt, N, M, every_k):
-    """
-    Tamed Euler-Maruyama for superlinear Langevin: 
-    dX = -mu * |X|^(p-1) * X * dt + sigma * dW
-    
-    Taming prevents numerical explosion by dividing drift by (1 + dt * |drift|)
-    
-    Args:
-        R: Initial radius
-        mu: Drift parameter
-        sigma: Diffusion parameter
-        power: Power in drift (p=3 for cubic)
+        drift_power: Power p in drift: -mu * |X|^(p-1) * X
+        r: State power parameter (taming uses |X|^(2r))
+        alpha: Power on dt in taming denominator
+        eta: Regularization strength (typically small, e.g., 0.01)
         dt: Time step
         N: Total number of steps
         M: Number of trajectories
@@ -84,14 +50,19 @@ def simulate_superlinear_tamed(R, mu, sigma, power, dt, N, M, every_k):
     for n in range(1, N + 1):
         Z = np.random.randn(M)
         
-        # Compute raw drift
-        drift_raw = -mu * np.abs(X)**(power - 1) * X
+        # Drift: G(X) = -mu * |X|^(p-1) * X
+        drift = -mu * np.abs(X)**(drift_power - 1) * X
         
-        # Taming: divide by (1 + dt * |drift|)
-        drift_norm = np.abs(drift_raw)
-        drift = drift_raw / (1.0 + dt * drift_norm)
+        # Regularization: H(X) = G(X) + eta * |X|^(2r) * X
+        regularization = eta * np.abs(X)**(2*r) * X
+        H = drift + regularization
         
-        X = X + drift * dt + sigma * np.sqrt(dt) * Z
+        # Sabanis/TUSLA taming: H_lambda = H / (1 + dt^alpha * |X|^(2r))
+        taming_denom = 1.0 + (dt ** alpha) * np.abs(X)**(2*r)
+        H_tamed = H / taming_denom
+        
+        # Update
+        X = X + H_tamed * dt + sigma * np.sqrt(dt) * Z
         
         if n % every_k == 0:
             times[save_idx] = n * dt
@@ -99,8 +70,8 @@ def simulate_superlinear_tamed(R, mu, sigma, power, dt, N, M, every_k):
             save_idx += 1
     
     # Check for NaN values
-    assert not np.any(np.isnan(times)), "NaN detected in superlinear times"
-    assert not np.any(np.isnan(samples)), "NaN detected in superlinear samples"
+    assert not np.any(np.isnan(times)), f"NaN detected in times (α={alpha}, r={r}, p={drift_power})"
+    assert not np.any(np.isnan(samples)), f"NaN detected in samples (α={alpha}, r={r}, p={drift_power})"
     
     return times, samples
 
