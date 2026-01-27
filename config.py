@@ -25,19 +25,23 @@ PARAMS = {
     # - (alpha=1, r, p): Stronger taming (was original implementation)
     
     'process_configs': [
-        (0.5, 0, 1),    # OU-like: linear drift, TUSLA-style alpha=0.5, constant taming
-        (0.5, 1, 3),    # Quadratic drift, TUSLA alpha=0.5, 2r=2 (close match)
-        (1.0, 1, 3),    # Quadratic drift, stronger taming alpha=1
+        (0.5, 0, 1),
+        (0.5, 1, 2),
+        (1.0, 1, 2),
+        (1.0, 0.5, 2),
     ],
     
     # Simulation parameters
     'T_max': 7.0,
-    'N': 1500,
+    'N': 4500, # Total number of steps
     'M': 1000,
+    # 'N': 45000, # Total number of steps
+    # 'M': 10000,
     'every_k': 10,
     
     # Radii to test
-    'R_values': np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0]),
+    'R_values': np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
+    # 'R_values': np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0]),
     
     # Thresholds for mixing time
     'p0_KS': 0.05,
@@ -45,7 +49,7 @@ PARAMS = {
     'eps_TV': 0.05,
     
     # Stationary reference generation
-    'M_stat': 5000,
+    'M_stat': 50000,
     
     # WandB settings
     'wandb_project': 'sabanis-tusla-taming',

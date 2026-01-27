@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from config import PARAMS
 from utils import (
     simulate_tusla,
+    sample_initial_bimodal,
     sample_stationary_superlinear_exact,
     get_stationary_std_superlinear,
     compute_metrics,
@@ -20,8 +21,16 @@ from plotting import (
     plot_cutoff_shapes,
     plot_combined_comparison,
     plot_asymptotic_scaling,
-    plot_combined_asymptotic
+    plot_combined_asymptotic,
+    plot_initial_distribution_heatmap
 )
+
+
+# Initial distribution parameters (bimodal setup from paper)
+DELTA = 0.05    # Far cluster relative position/width
+EPS = 0.01      # Paper parameter (not used in sampler, kept for reference)
+B_RHO = 0.10    # Probability mass in far cluster (10%)
+SYMMETRIC = True  # Mirror far cluster to both sides (±x0)
 
 
 def main():
@@ -115,6 +124,19 @@ def main():
         print(f"PROCESS: α={alpha}, r={r}, p={drift_power}")
         print(f"{'='*80}")
         
+        # Generate bimodal initial samples for all R
+        print(f"\nGenerating bimodal initial distribution for all R...")
+        samples0_by_R = {
+            R: sample_initial_bimodal(R, M, EPS, DELTA, B_RHO, SYMMETRIC)
+            for R in R_values
+        }
+        
+        # Create and log initial distribution heatmap
+        fig = plot_initial_distribution_heatmap(R_values, samples0_by_R, config_name)
+        wandb.log({f"plots/{config_name}_initial_heatmap": wandb.Image(fig)})
+        plt.close(fig)
+        print(f"  Initial distribution heatmap logged to WandB")
+        
         results = {}
         stationary_ref = stationary_refs[config_name]
         stationary_std = stationary_stds[config_name]
@@ -133,7 +155,8 @@ def main():
                 dt=dt,
                 N=N,
                 M=M,
-                every_k=every_k
+                every_k=every_k,
+                X0=samples0_by_R[R]  # Use bimodal initial distribution
             )
             
             # Compute metrics

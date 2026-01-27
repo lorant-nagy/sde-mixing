@@ -265,3 +265,51 @@ def plot_combined_asymptotic(all_mixing_times, process_configs):
     
     plt.tight_layout()
     return fig
+
+def plot_initial_distribution_heatmap(R_values, samples_dict, process_name):
+    """
+    Create heatmap of initial distributions across R values.
+    Returns figure object (no disk writes).
+    
+    Args:
+        R_values: Array of R values
+        samples_dict: {R: samples_array} - initial samples for each R
+        process_name: String for title (e.g., "α=0.5, r=1, p=3")
+    
+    Returns:
+        Figure object
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    
+    # Determine global bin range
+    R_max = R_values.max()
+    delta = 0.05  # Hardcoded (matches sampler default)
+    x_max = (1 + 2*delta) * R_max
+    bins = np.linspace(-x_max, x_max, 200)
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    
+    # Build probability matrix
+    n_R = len(R_values)
+    n_bins = len(bins) - 1
+    P = np.zeros((n_R, n_bins))
+    
+    for i, R in enumerate(R_values):
+        counts, _ = np.histogram(samples_dict[R], bins=bins)
+        P[i, :] = counts / counts.sum()  # Normalize to probabilities
+    
+    # Plot heatmap
+    im = ax.imshow(P, aspect='auto', origin='lower', 
+                   extent=[bin_centers[0], bin_centers[-1], 0, n_R-1],
+                   cmap='viridis', interpolation='nearest')
+    
+    # Y-axis: show actual R values
+    ax.set_yticks(range(n_R))
+    ax.set_yticklabels([f'{int(R)}' for R in R_values])
+    
+    ax.set_xlabel('x (state)')
+    ax.set_ylabel('R (initial radius)')
+    ax.set_title(f'Initial Distribution Heatmap: {process_name}')
+    plt.colorbar(im, ax=ax, label='Probability density')
+    
+    plt.tight_layout()
+    return fig

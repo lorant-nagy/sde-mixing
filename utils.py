@@ -7,7 +7,43 @@ from scipy.stats import wasserstein_distance, ks_2samp
 from scipy.special import gamma
 
 
-def simulate_tusla(R, mu, sigma, drift_power, r, alpha, eta, dt, N, M, every_k):
+def sample_initial_bimodal(R, M, eps=0.01, delta=0.05, b_rho=0.1, symmetric=True):
+    """
+    Sample initial distribution: mixture of bulk + far cluster (paper-style bimodal).
+    
+    Args:
+        R: Radius
+        M: Number of samples
+        eps: Paper parameter (not used in sampler, kept for reference)
+        delta: Far cluster relative width (0.05 means cluster at 1.05*R with width 0.1*R)
+        b_rho: Probability mass in far cluster (0.1 = 10%)
+        symmetric: If True, far cluster appears at ±(1+δ)R
+    
+    Returns:
+        1D array of M initial samples
+    """
+    # Mixture indicator: with probability b_rho, sample is from far cluster
+    is_far = np.random.rand(M) < b_rho
+    
+    # Bulk: uniform in [-R, R]
+    bulk = np.random.uniform(-R, R, M)
+    
+    # Far cluster: centered at x0 = (1+delta)*R with half-width delta*R
+    x0 = (1 + delta) * R
+    half_width = delta * R
+    far = np.random.uniform(x0 - half_width, x0 + half_width, M)
+    
+    # Apply symmetry: randomly flip signs to get ±x0
+    if symmetric:
+        signs = np.where(np.random.rand(M) < 0.5, -1, 1)
+        far = far * signs
+    
+    # Mix bulk and far samples
+    samples = np.where(is_far, far, bulk)
+    return samples
+
+
+def simulate_tusla(R, mu, sigma, drift_power, r, alpha, eta, dt, N, M, every_k, X0=None):
     """
     Generalized Sabanis/TUSLA algorithm for Langevin dynamics.
     
@@ -21,7 +57,7 @@ def simulate_tusla(R, mu, sigma, drift_power, r, alpha, eta, dt, N, M, every_k):
     - (alpha=1, r, p): Stronger taming (original drift-taming style)
     
     Args:
-        R: Initial radius
+        R: Initial radius (used only if X0 is None)
         mu: Drift parameter
         sigma: Diffusion parameter
         drift_power: Power p in drift: -mu * |X|^(p-1) * X
@@ -32,12 +68,17 @@ def simulate_tusla(R, mu, sigma, drift_power, r, alpha, eta, dt, N, M, every_k):
         N: Total number of steps
         M: Number of trajectories
         every_k: Save every k-th step
+        X0: Initial samples (shape M,). If None, uses X = R for all trajectories
     
     Returns:
         times: Array of time points
         samples: Array of shape (n_save, M) with samples
     """
-    X = np.full(M, R, dtype=np.float64)
+    # Initialize from provided samples or default to R
+    if X0 is None:
+        X = np.full(M, R, dtype=np.float64)
+    else:
+        X = X0.copy()
     
     n_save = N // every_k + 1
     times = np.zeros(n_save)
@@ -133,16 +174,21 @@ def get_stationary_std_superlinear(mu, sigma, power):
     return np.sqrt(variance)
 
 
-def compute_metrics(samples, stationary_ref, stationary_std, R_max):
+def compute_metrics(samples, stationary_ref, stationary_std, R_max, L=6.0, nbins_inner=200):
     """
     Compute KS p-value, KS statistic, Wasserstein distance, and TV distance for all time points.
     Uses process-specific stationary reference.
+    
+    TV distance uses overflow bins to avoid truncation bias and maintains resolution
+    on the stationary scale (not R_max scale).
     
     Args:
         samples: Array of shape (n_times, M) with samples at each time
         stationary_ref: Stationary reference samples
         stationary_std: Standard deviation of stationary distribution
-        R_max: Maximum R value (for bin range)
+        R_max: Maximum R value (not used for TV bins anymore, kept for compatibility)
+        L: Multiple of stationary_std to cover for TV bins (default 6.0 covers ~99.9%)
+        nbins_inner: Number of bins for inner range in TV computation (default 200)
     
     Returns:
         KS_pvals: KS test p-values
@@ -160,13 +206,16 @@ def compute_metrics(samples, stationary_ref, stationary_std, R_max):
     W1_dists = np.zeros(n_times)
     TV_dists = np.zeros(n_times)
     
-    # Use bins that cover both stationary distribution and transient states
-    bin_range = max(5 * stationary_std, 1.2 * R_max)
-    bins = np.linspace(-bin_range, bin_range, 100)
+    # TV distance: Use overflow bins to avoid truncation
+    # Resolution on stationary scale (not R_max scale)
+    inner_range = L * stationary_std
+    inner_bins = np.linspace(-inner_range, inner_range, nbins_inner + 1)
+    bins = np.concatenate(([-np.inf], inner_bins, [np.inf]))
     
     # Precompute stationary histogram (as probabilities)
-    counts_stat, _ = np.histogram(stationary_ref, bins=bins, density=False)
-    p_stat = counts_stat / counts_stat.sum()
+    # With overflow bins, all mass is captured (no truncation)
+    counts_stat, _ = np.histogram(stationary_ref, bins=bins)
+    p_stat = counts_stat / counts_stat.sum()  # Always sums to 1
     
     for i in range(n_times):
         X_t = samples[i]
@@ -179,14 +228,10 @@ def compute_metrics(samples, stationary_ref, stationary_std, R_max):
         # Wasserstein distance
         W1_dists[i] = wasserstein_distance(X_t, stationary_ref)
         
-        # TV distance (fixed to handle empty bins)
-        counts_samp, _ = np.histogram(X_t, bins=bins, density=False)
-        if counts_samp.sum() == 0:
-            # All samples outside bin range - maximal disagreement
-            TV_dists[i] = 1.0
-        else:
-            p_samp = counts_samp / counts_samp.sum()
-            TV_dists[i] = 0.5 * np.abs(p_samp - p_stat).sum()
+        # TV distance with overflow bins (no truncation, no renormalization bias)
+        counts_samp, _ = np.histogram(X_t, bins=bins)
+        p_samp = counts_samp / counts_samp.sum()  # Always sums to 1
+        TV_dists[i] = 0.5 * np.abs(p_samp - p_stat).sum()
     
     # Check for NaN in outputs
     assert not np.any(np.isnan(KS_pvals)), "NaN detected in KS p-values"
