@@ -245,49 +245,113 @@ def main():
         results = all_results[config_name]
         mixing_times = all_mixing_times[config_name]
         
-        # Cutoff shapes plot
-        fig = plot_cutoff_shapes(
+        # Cutoff shapes plot - now returns dict of figures
+        figs_cutoff = plot_cutoff_shapes(
             results=results,
             R_values=R_values,
             process_name=f"α={alpha}, r={r}, p={drift_power}",
             thresholds=thresholds,
             use_KS_stat=use_KS_stat
         )
-        wandb.log({f"plots/{config_name}_cutoff_shapes": wandb.Image(fig)})
-        plt.close(fig)
+        wandb.log({f"plots/{config_name}_cutoff_shapes_KS": wandb.Image(figs_cutoff['KS'])})
+        wandb.log({f"plots/{config_name}_cutoff_shapes_W1": wandb.Image(figs_cutoff['W1'])})
+        wandb.log({f"plots/{config_name}_cutoff_shapes_TV": wandb.Image(figs_cutoff['TV'])})
+        plt.close(figs_cutoff['KS'])
+        plt.close(figs_cutoff['W1'])
+        plt.close(figs_cutoff['TV'])
         
-        # Asymptotic scaling plot
-        fig = plot_asymptotic_scaling(
+        # Asymptotic scaling plot - now returns dict of figures
+        figs_asymptotic = plot_asymptotic_scaling(
             mixing_times=mixing_times,
             slope_theory=None,  # Not used in plotting
             process_name=f"α={alpha}, r={r}, p={drift_power}",
-            color='blue'  # Will cycle through colors in combined plot
+            color='blue'
         )
-        wandb.log({f"plots/{config_name}_asymptotic_scaling": wandb.Image(fig)})
-        plt.close(fig)
+        wandb.log({f"plots/{config_name}_asymptotic_scaling_KS": wandb.Image(figs_asymptotic['KS'])})
+        wandb.log({f"plots/{config_name}_asymptotic_scaling_W1": wandb.Image(figs_asymptotic['W1'])})
+        wandb.log({f"plots/{config_name}_asymptotic_scaling_TV": wandb.Image(figs_asymptotic['TV'])})
+        plt.close(figs_asymptotic['KS'])
+        plt.close(figs_asymptotic['W1'])
+        plt.close(figs_asymptotic['TV'])
     
     # Combined comparison plots if we have multiple processes
     if len(process_configs) > 1:
         print("\nGenerating combined comparison plots...")
         
-        # Combined cutoff comparison
-        fig = plot_combined_comparison(
+        # Combined cutoff comparison - now returns dict of (metric, R) -> figure
+        figs_combined = plot_combined_comparison(
             all_results=all_results,
             R_values=R_values,
             process_configs=process_configs,
             thresholds=thresholds,
             use_KS_stat=use_KS_stat
         )
-        wandb.log({"plots/combined_cutoff_comparison": wandb.Image(fig)})
-        plt.close(fig)
         
-        # Combined asymptotic comparison
-        fig = plot_combined_asymptotic(
+        for (metric, R), fig in figs_combined.items():
+            wandb.log({f"plots/combined_cutoff_{metric}_R{R:.1f}": wandb.Image(fig)})
+            plt.close(fig)
+        
+        # Combined asymptotic comparison - now returns dict of figures
+        figs_asymptotic_combined = plot_combined_asymptotic(
             all_mixing_times=all_mixing_times,
             process_configs=process_configs
         )
-        wandb.log({"plots/combined_asymptotic_comparison": wandb.Image(fig)})
-        plt.close(fig)
+        wandb.log({f"plots/combined_asymptotic_KS": wandb.Image(figs_asymptotic_combined['KS'])})
+        wandb.log({f"plots/combined_asymptotic_W1": wandb.Image(figs_asymptotic_combined['W1'])})
+        wandb.log({f"plots/combined_asymptotic_TV": wandb.Image(figs_asymptotic_combined['TV'])})
+        plt.close(figs_asymptotic_combined['KS'])
+        plt.close(figs_asymptotic_combined['W1'])
+        plt.close(figs_asymptotic_combined['TV'])
+    
+    print("\n" + "=" * 80)
+    print("LOGGING JSON DATA FOR PLOT RECONSTRUCTION")
+    print("=" * 80)
+    
+    # Log JSON data that can be used to reconstruct plots
+    plot_reconstruction_data = {
+        'R_values': R_values.tolist(),
+        'thresholds': thresholds,
+        'process_configs': [
+            {'alpha': alpha, 'r': r, 'drift_power': p}
+            for alpha, r, p in process_configs
+        ],
+        'results': {},
+        'mixing_times': {}
+    }
+    
+    # Add results for each configuration
+    for alpha, r, drift_power in process_configs:
+        config_name = f"a{alpha}_r{r}_p{drift_power}"
+        
+        # Store cutoff data for each R
+        config_results = {}
+        for R in R_values:
+            config_results[f'R_{R:.1f}'] = {
+                'times': all_results[config_name][R]['times'].tolist(),
+                'KS_pvals': all_results[config_name][R]['KS_pvals'].tolist(),
+                'KS_stats': all_results[config_name][R]['KS_stats'].tolist(),
+                'W1': all_results[config_name][R]['W1'].tolist(),
+                'TV': all_results[config_name][R]['TV'].tolist()
+            }
+        
+        plot_reconstruction_data['results'][config_name] = config_results
+        
+        # Store mixing times
+        plot_reconstruction_data['mixing_times'][config_name] = {
+            'R': all_mixing_times[config_name]['R'].tolist(),
+            'KS': all_mixing_times[config_name]['KS'].tolist(),
+            'W1': all_mixing_times[config_name]['W1'].tolist(),
+            'TV': all_mixing_times[config_name]['TV'].tolist()
+        }
+    
+    # Log as JSON artifact
+    import json
+    json_path = '/tmp/plot_reconstruction_data.json'
+    with open(json_path, 'w') as f:
+        json.dump(plot_reconstruction_data, f, indent=2)
+    
+    wandb.save(json_path)
+    print(f"Saved plot reconstruction data to {json_path}")
     
     print("\n" + "=" * 80)
     print("EXPERIMENT COMPLETE")

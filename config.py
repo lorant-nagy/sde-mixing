@@ -25,11 +25,9 @@ PARAMS = {
     # - (alpha=1, r, p): Stronger taming (was original implementation)
     
     'process_configs': [
-        (0.5, 0, 1), 
         (1.0, 0, 1), 
-        (0.5, 1, 2),
         (1.0, 1, 2),
-        (1.0, 0.5, 2),
+        (1.0, 2, 3),
     ],
     
     # Simulation parameters
@@ -51,6 +49,6 @@ PARAMS = {
     'M_stat': 50000,
     
     # WandB settings
-    'wandb_project': 'sabanis-tusla-taming',
+    'wandb_project': 'mixing-times_lendulet',
     'wandb_entity': None,
 }
