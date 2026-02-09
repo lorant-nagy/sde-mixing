@@ -29,8 +29,8 @@ from plotting import (
 # Initial distribution parameters (bimodal setup from paper)
 DELTA = 0.05    # Far cluster relative position/width
 EPS = 0.01      # Paper parameter (not used in sampler, kept for reference)
-B_RHO = 0.10    # Probability mass in far cluster (10%)
-SYMMETRIC = True  # Mirror far cluster to both sides (±x0)
+B_RHO = 0.30    # Probability mass in far cluster (30%)
+SYMMETRIC = False  # Mirror far cluster to both sides (±x0)
 
 
 def main():
@@ -60,7 +60,7 @@ def main():
     dt = T_max / N
     
     # TUSLA regularization (typically small)
-    eta = 0.01
+    # eta = 0.01
     
     thresholds = {
         'p0_KS': PARAMS['p0_KS'],
@@ -114,6 +114,19 @@ def main():
     print("\n" + "=" * 80)
     print("SIMULATING PROCESSES FOR ALL R")
     print("=" * 80)
+
+    # Generate bimodal initial samples ONCE (before loop)
+    print("\nGenerating bimodal initial distribution for all R - for logging purpose")
+    samples0_by_R = {
+        R: sample_initial_bimodal(R, M, EPS, DELTA, B_RHO, SYMMETRIC)
+        for R in R_values
+    }
+
+    # Create and log ONE heatmap
+    fig = plot_initial_distribution_heatmap(R_values, samples0_by_R, "Initial Distribution", DELTA)
+    wandb.log({"plots/initial_heatmap": wandb.Image(fig)})
+    plt.close(fig)
+    print("  Initial distribution heatmap logged to WandB")
     
     # Store results for each process configuration
     all_results = {}
@@ -131,12 +144,6 @@ def main():
             for R in R_values
         }
         
-        # Create and log initial distribution heatmap
-        fig = plot_initial_distribution_heatmap(R_values, samples0_by_R, config_name)
-        wandb.log({f"plots/{config_name}_initial_heatmap": wandb.Image(fig)})
-        plt.close(fig)
-        print(f"  Initial distribution heatmap logged to WandB")
-        
         results = {}
         stationary_ref = stationary_refs[config_name]
         stationary_std = stationary_stds[config_name]
@@ -151,7 +158,6 @@ def main():
                 drift_power=drift_power,
                 r=r,
                 alpha=alpha,
-                eta=eta,
                 dt=dt,
                 N=N,
                 M=M,

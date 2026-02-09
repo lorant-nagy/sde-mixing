@@ -266,7 +266,7 @@ def plot_combined_asymptotic(all_mixing_times, process_configs):
     plt.tight_layout()
     return fig
 
-def plot_initial_distribution_heatmap(R_values, samples_dict, process_name):
+def plot_initial_distribution_heatmap(R_values, samples_dict, process_name, delta):
     """
     Create heatmap of initial distributions across R values.
     Returns figure object (no disk writes).
@@ -275,7 +275,7 @@ def plot_initial_distribution_heatmap(R_values, samples_dict, process_name):
         R_values: Array of R values
         samples_dict: {R: samples_array} - initial samples for each R
         process_name: String for title (e.g., "α=0.5, r=1, p=3")
-    
+        delta: Parameter controlling far cluster width in initial distribution
     Returns:
         Figure object
     """
@@ -283,7 +283,6 @@ def plot_initial_distribution_heatmap(R_values, samples_dict, process_name):
     
     # Determine global bin range
     R_max = R_values.max()
-    delta = 0.05  # Hardcoded (matches sampler default)
     x_max = (1 + 2*delta) * R_max
     bins = np.linspace(-x_max, x_max, 200)
     bin_centers = (bins[:-1] + bins[1:]) / 2

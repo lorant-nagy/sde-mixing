@@ -43,7 +43,7 @@ def sample_initial_bimodal(R, M, eps=0.01, delta=0.05, b_rho=0.1, symmetric=True
     return samples
 
 
-def simulate_tusla(R, mu, sigma, drift_power, r, alpha, eta, dt, N, M, every_k, X0=None):
+def simulate_tusla(R, mu, sigma, drift_power, r, alpha, dt, N, M, every_k, X0=None, eta = 0):
     """
     Generalized Sabanis/TUSLA algorithm for Langevin dynamics.
     
@@ -157,7 +157,7 @@ def get_stationary_std_superlinear(mu, sigma, power):
     Compute the theoretical standard deviation of the stationary distribution.
     
     For the superlinear Langevin with density proportional to exp(-alpha * |x|^k),
-    the variance is: 2 * Gamma(3/k) / (alpha^(2/k) * Gamma(1/k))
+    the variance is: Gamma(3/k) / (alpha^(2/k) * Gamma(1/k))
     
     Args:
         mu: Drift parameter
@@ -170,7 +170,7 @@ def get_stationary_std_superlinear(mu, sigma, power):
     k = power + 1
     alpha = 2 * mu / (k * sigma**2)
     
-    variance = 2 * gamma(3.0/k) / (alpha**(2.0/k) * gamma(1.0/k))
+    variance = gamma(3.0/k) / (alpha**(2.0/k) * gamma(1.0/k))
     return np.sqrt(variance)
 
 
