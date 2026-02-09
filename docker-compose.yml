@@ -10,7 +10,7 @@ services:
       - ./:/workspace
 
     env_file:
-      - /home/lorantnagy/.secrets/wandb.env
+      - ${HOME}/.secrets/wandb.env
 
     environment:
       - PYTHONPATH=/workspace
